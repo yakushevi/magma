@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Magma Smart Router — Operations Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- ─── Header ─── -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo">Magma <span>/ Smart Router</span></div>
+    <div class="live-badge"><div class="live-dot"></div> LIVE</div>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center;">
+    <span style="color:var(--text-dim);font-size:11px;" id="clock">--:--:--</span>
+    <span class="badge badge-green" id="cb-header-badge">Circuit: CLOSED</span>
+  </div>
+</div>
+
+<!-- ─── Status Bar ─── -->
+<div class="status-bar">
+  <div class="stat-item">
+    <div>
+      <div class="stat-label">SLA Compliance</div>
+      <div class="stat-value" id="stat-uptime" style="color:var(--green);font-size:16px;">99.94%</div>
+      <div class="stat-sublabel" id="stat-sla-target">Target: 99.9%</div>
+    </div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <div>
+      <div class="stat-label">Req/sec</div>
+      <div class="stat-value" id="stat-rps" style="color:var(--blue);">1,247</div>
+    </div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <div>
+      <div class="stat-label">Providers</div>
+      <div class="stat-value" id="stat-providers" style="color:var(--green);">8/8</div>
+    </div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <div>
+      <div class="stat-label">P95 Latency</div>
+      <div class="stat-value" id="stat-p95" style="color:var(--text);">87<span class="stat-unit">ms</span></div>
+    </div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <div>
+      <div class="stat-label">Error Rate</div>
+      <div class="stat-value" id="stat-errrate" style="color:var(--green);">0.12<span class="stat-unit">%</span></div>
+    </div>
+  </div>
+  <div class="stat-divider"></div>
+  <div class="stat-item">
+    <div>
+      <div class="stat-label">Monthly CU</div>
+      <div class="stat-value" id="stat-cu" style="color:var(--text);">2.4<span class="stat-unit">M</span></div>
+      <div class="stat-sublabel" id="stat-cu-mismatch" style="color:var(--green)">0 mismatches</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Incident Banner (hidden by default) ─── -->
+<div class="incident-banner" id="incident-banner" style="display:none;">
+  <div class="incident-banner-left">
+    <span class="incident-banner-icon">!</span>
+    <span id="incident-banner-text">Incident in progress</span>
+  </div>
+  <div class="incident-banner-right">
+    <span class="stat-label">Est. Revenue Impact</span>
+    <span id="incident-revenue-impact" style="color:var(--red);font-weight:700;font-size:14px;">—</span>
+  </div>
+</div>
+
+<!-- ─── Tab Navigation ─── -->
+<div class="tabs-nav">
+  <button class="tab-btn active" onclick="switchTab('overview', this)">System Overview</button>
+  <button class="tab-btn" onclick="switchTab('providers', this)">Provider Health</button>
+  <button class="tab-btn" onclick="switchTab('feed', this)">Routing Feed</button>
+  <button class="tab-btn" onclick="switchTab('circuit', this)">Circuit Breaker &amp; Incidents</button>
+</div>
+
+<!-- ─── TAB 1: System Overview ─── -->
+<div class="tab-content active" id="tab-overview">
+  <div class="grid-2x2">
+    <div class="chart-card">
+      <div class="chart-title">Latency — P50 / P95 / P99 (ms)</div>
+      <canvas id="chart-latency"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Error Rate by Type (%)</div>
+      <canvas id="chart-errors"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Throughput — Requests/sec</div>
+      <canvas id="chart-throughput"></canvas>
+    </div>
+    <div class="provider-table-card">
+      <div class="chart-title">Provider Composite Scores</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Score</th>
+            <th>Avail</th>
+            <th>P50 (ms)</th>
+            <th>Sync (s)</th>
+            <th>Traffic</th>
+          </tr>
+        </thead>
+        <tbody id="provider-scores-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TAB 2: Provider Health ─── -->
+<div class="tab-content" id="tab-providers">
+  <div class="grid-4" id="provider-health-grid"></div>
+</div>
+
+<!-- ─── TAB 3: Routing Feed ─── -->
+<div class="tab-content" id="tab-feed">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <div class="section-title">Routing Decision Audit Trail</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span style="color:var(--text-dim);font-size:11px;">Last 50 decisions • Auto-refresh every 2s</span>
+      <span class="badge badge-blue">COMPLIANCE ARTIFACT</span>
+    </div>
+  </div>
+  <div class="feed-table-container card">
+    <table class="feed-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Request ID</th>
+          <th>Chain · Method</th>
+          <th>Provider</th>
+          <th>Mode</th>
+          <th>Score</th>
+          <th>Retry</th>
+          <th>Latency</th>
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody id="feed-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ─── TAB 4: Circuit Breaker & Incidents ─── -->
+<div class="tab-content" id="tab-circuit">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+
+    <!-- Left column: state machine + controls -->
+    <div>
+      <div class="section-title">Circuit Breaker State Machine</div>
+      <div class="cb-viz">
+        <div class="cb-state active-state" id="cb-closed">
+          <div class="cb-state-name" style="color:var(--green);">CLOSED</div>
+          <div class="cb-state-desc">Normal operation<br>All traffic flows</div>
+        </div>
+        <div class="cb-arrow">→</div>
+        <div class="cb-state" id="cb-half">
+          <div class="cb-state-name" style="color:var(--yellow);">HALF-OPEN</div>
+          <div class="cb-state-desc">Probe requests<br>Monitoring recovery</div>
+        </div>
+        <div class="cb-arrow">→</div>
+        <div class="cb-state" id="cb-open">
+          <div class="cb-state-name" style="color:var(--red);">OPEN</div>
+          <div class="cb-state-desc">Circuit tripped<br>Failover active</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div class="section-title" style="font-size:12px;">Consecutive Pairing Errors (threshold: 2)</div>
+        <div class="error-bar-container">
+          <div class="error-bar-label">
+            <span id="cb-error-count">0 errors</span>
+            <span style="color:var(--text-dim);">Threshold: 2</span>
+          </div>
+          <div class="error-bar">
+            <div class="error-bar-fill" id="cb-error-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="incident-controls">
+        <button class="btn btn-red"   onclick="triggerIncident()">⚡ Trigger Incident</button>
+        <button class="btn btn-green" onclick="resolveIncident()">✓ Resolve / Reset</button>
+        <span style="color:var(--text-dim);font-size:11px;" id="incident-status">No active incident</span>
+      </div>
+
+      <div class="card" style="margin-top:8px;">
+        <div class="chart-title" style="margin-bottom:8px;">Note on Current Implementation</div>
+        <div style="font-size:11px;color:var(--text-dim);line-height:1.6;">
+          Current circuit breaker (<code style="color:var(--blue);">smartrouter_relay_state_machine.go:378</code>)
+          trips at ≥2 consecutive <code style="color:var(--blue);">PairingListEmptyError</code> events.
+          No half-open state exists today — this visualization shows the
+          <strong style="color:var(--text);">target state</strong> after the Days 31–60 hardening plan.
+        </div>
+      </div>
+    </div>
+
+    <!-- Right column: incident log + provider error bars -->
+    <div>
+      <div class="section-title">Incident Log</div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Type</th>
+              <th>Trigger</th>
+              <th>Duration</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="incident-tbody">
+            <tr>
+              <td colspan="5" style="text-align:center;color:var(--text-dim);padding:20px;">
+                No incidents recorded. Trigger one above.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:16px;">
+        <div class="section-title">Provider Error Rates (last 60s)</div>
+        <div class="card" id="provider-error-bars"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── Scripts (load order matters) ─── -->
+<script src="simulation.js"></script>
+<script src="charts.js"></script>
+<script src="render.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

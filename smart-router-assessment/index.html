@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lava Smart Router — Architecture Assessment | Magma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════
+   RESET & BASE
+   ═══════════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #0f1a2e;
+  --navy-light: #1a2744;
+  --lava: #e63e1a;
+  --lava-light: #ff6b47;
+  --green: #16a34a;
+  --green-bg: #dcfce7;
+  --amber: #d97706;
+  --amber-bg: #fef3c7;
+  --red: #dc2626;
+  --red-bg: #fee2e2;
+  --bg: #f8f9fc;
+  --card-bg: #ffffff;
+  --text: #1e293b;
+  --text-secondary: #64748b;
+  --border: #e2e8f0;
+  --code-bg: #f1f5f9;
+  --sidebar-w: 260px;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ═══════════════════════════════════════════
+   SIDEBAR NAV
+   ═══════════════════════════════════════════ */
+.sidebar {
+  position: fixed; top: 0; left: 0;
+  width: var(--sidebar-w); height: 100vh;
+  background: var(--card-bg);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  z-index: 100;
+  padding: 32px 0;
+}
+
+.sidebar-brand {
+  padding: 0 24px 28px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.sidebar-brand h2 {
+  font-size: 15px; font-weight: 800;
+  color: var(--navy);
+  letter-spacing: -0.02em;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.sidebar-brand h2::before {
+  content: '';
+  width: 10px; height: 10px;
+  background: var(--lava);
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.sidebar-brand p {
+  font-size: 11px; color: var(--text-secondary);
+  margin-top: 4px; font-weight: 500;
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+
+.sidebar-nav { flex: 1; overflow-y: auto; }
+
+.sidebar-nav a {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 24px;
+  font-size: 13px; font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.sidebar-nav a:hover {
+  color: var(--navy);
+  background: var(--bg);
+}
+
+.sidebar-nav a.active {
+  color: var(--lava);
+  border-left-color: var(--lava);
+  background: #fff5f3;
+  font-weight: 600;
+}
+
+.sidebar-nav a .nav-num {
+  font-size: 10px; font-weight: 700;
+  color: var(--text-secondary);
+  background: var(--bg);
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.sidebar-nav a.active .nav-num {
+  color: white;
+  background: var(--lava);
+}
+
+.sidebar-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.sidebar-footer a {
+  font-size: 12px; color: var(--lava);
+  text-decoration: none; font-weight: 600;
+  display: flex; align-items: center; gap: 6px;
+  transition: opacity 0.2s;
+}
+.sidebar-footer a:hover { opacity: 0.7; }
+
+/* ═══════════════════════════════════════════
+   MAIN CONTENT
+   ═══════════════════════════════════════════ */
+.main {
+  margin-left: var(--sidebar-w);
+  min-height: 100vh;
+}
+
+section {
+  min-height: 100vh;
+  padding: 80px 64px;
+  max-width: 960px;
+}
+
+/* ═══════════════════════════════════════════
+   TYPOGRAPHY
+   ═══════════════════════════════════════════ */
+h1 {
+  font-size: 42px; font-weight: 900;
+  color: var(--navy);
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+h2 {
+  font-size: 28px; font-weight: 800;
+  color: var(--navy);
+  letter-spacing: -0.02em;
+  margin-bottom: 24px;
+}
+
+h3 {
+  font-size: 18px; font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 12px;
+}
+
+h4 {
+  font-size: 14px; font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+}
+
+p { margin-bottom: 16px; }
+
+/* ═══════════════════════════════════════════
+   ANIMATION
+   ═══════════════════════════════════════════ */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════
+   COMPONENTS
+   ═══════════════════════════════════════════ */
+
+/* Cards */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 28px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02);
+  transition: box-shadow 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.04);
+}
+
+/* Badges */
+.badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.badge-critical { background: var(--red-bg); color: var(--red); }
+.badge-high { background: var(--amber-bg); color: var(--amber); }
+.badge-low { background: var(--green-bg); color: var(--green); }
+
+/* Code */
+code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--code-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: var(--navy);
+}
+
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  overflow-x: auto;
+  margin: 16px 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--navy);
+}
+
+/* Source file refs */
+.source-ref {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--code-bg);
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  margin: 2px 2px;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 20px 0;
+  font-size: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+th {
+  background: var(--navy);
+  color: white;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+tr:last-child td { border-bottom: none; }
+tr:nth-child(even) td { background: var(--bg); }
+
+/* Callout */
+.callout {
+  border-left: 4px solid var(--lava);
+  background: #fff8f6;
+  padding: 20px 24px;
+  border-radius: 0 8px 8px 0;
+  margin: 24px 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--navy);
+  font-weight: 400;
+}
+
+.callout strong { font-weight: 700; }
+
+/* Grid */
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin: 20px 0;
+}
+
+/* ═══════════════════════════════════════════
+   HERO
+   ═══════════════════════════════════════════ */
+.hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 80px 64px;
+}
+
+.hero-eyebrow {
+  font-size: 12px; font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--lava);
+  margin-bottom: 16px;
+}
+
+.hero h1 { margin-bottom: 24px; }
+
+.hero-subtitle {
+  font-size: 18px; color: var(--text-secondary);
+  margin-bottom: 40px; max-width: 600px;
+  line-height: 1.6;
+}
+
+.hero-meta {
+  display: flex; gap: 24px;
+  font-size: 13px; color: var(--text-secondary);
+  margin-top: 20px;
+}
+
+.hero-meta span { display: flex; align-items: center; gap: 6px; }
+
+.dashboard-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--navy);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 14px; font-weight: 600;
+  transition: background 0.2s;
+  margin-top: 8px;
+}
+
+.dashboard-link:hover { background: var(--navy-light); }
+
+/* ═══════════════════════════════════════════
+   FLOWCHART
+   ═══════════════════════════════════════════ */
+.flowchart {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 24px 0;
+}
+
+.flow-step {
+  display: flex;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.flow-line {
+  width: 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.flow-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--lava);
+  border: 3px solid #fecaca;
+  flex-shrink: 0;
+  margin-top: 14px;
+}
+
+.flow-connector {
+  width: 2px;
+  flex: 1;
+  background: var(--border);
+}
+
+.flow-content {
+  padding: 10px 0 20px;
+  flex: 1;
+}
+
+.flow-label {
+  font-size: 14px; font-weight: 600;
+  color: var(--navy);
+}
+
+.flow-detail {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+/* ═══════════════════════════════════════════
+   SELECTION MODE CARDS
+   ═══════════════════════════════════════════ */
+.mode-card {
+  border-top: 3px solid var(--navy);
+}
+
+.mode-card .mode-name {
+  font-size: 16px; font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.mode-card .mode-desc {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.mode-card .mode-traffic {
+  font-size: 12px; font-weight: 700;
+  color: var(--lava);
+}
+
+/* ═══════════════════════════════════════════
+   RISK CARDS
+   ═══════════════════════════════════════════ */
+.risk-card {
+  border-left: 4px solid var(--red);
+}
+
+.risk-card.high {
+  border-left-color: var(--amber);
+}
+
+.risk-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.risk-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.risk-body { font-size: 14px; }
+
+.risk-body h4 {
+  font-size: 13px;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  color: var(--navy);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.risk-sub {
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 10px 0;
+  font-size: 13px;
+}
+
+.risk-sub strong {
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.risk-footer {
+  display: flex; gap: 24px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.risk-footer-item label {
+  display: block;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+/* ═══════════════════════════════════════════
+   SCENARIO CARDS
+   ═══════════════════════════════════════════ */
+.scenario-card {
+  border-top: 3px solid var(--lava);
+}
+
+.scenario-title {
+  font-size: 18px; font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.scenario-subtitle {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 16px; font-style: italic;
+}
+
+.cascade {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 16px 0;
+}
+
+.cascade-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
+}
+
+.cascade-marker {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--red-bg);
+  color: var(--red);
+  font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cascade-step.warning .cascade-marker {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
+.cascade-step.final .cascade-marker {
+  background: var(--red);
+  color: white;
+}
+
+.cascade-line {
+  position: absolute;
+  left: 14px; top: 30px;
+  width: 2px;
+  height: calc(100% + 4px);
+  background: var(--border);
+}
+
+.cascade-text {
+  padding: 4px 0 20px;
+  font-size: 13px;
+}
+
+.cascade-text strong { color: var(--navy); }
+
+/* ═══════════════════════════════════════════
+   TIMELINE
+   ═══════════════════════════════════════════ */
+.timeline {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin: 32px 0;
+  position: relative;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 24px; left: 0; right: 0;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.timeline-month {
+  position: relative;
+  padding-top: 48px;
+}
+
+.timeline-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  position: absolute;
+  top: 17px; left: 24px;
+  z-index: 1;
+}
+
+.timeline-month:nth-child(1) .timeline-dot { background: var(--red); }
+.timeline-month:nth-child(2) .timeline-dot { background: var(--amber); }
+.timeline-month:nth-child(3) .timeline-dot { background: var(--green); }
+
+.timeline-month:nth-child(1) .timeline-fill { background: var(--red); }
+.timeline-month:nth-child(2) .timeline-fill { background: var(--amber); }
+.timeline-month:nth-child(3) .timeline-fill { background: var(--green); }
+
+.timeline-fill {
+  position: absolute;
+  top: 24px; left: 0;
+  height: 4px;
+  width: 32px;
+  border-radius: 2px;
+}
+
+.timeline-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-right: 12px;
+  overflow: hidden;
+}
+
+.timeline-header {
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.timeline-header h3 {
+  font-size: 14px; margin: 0;
+}
+
+.timeline-header .arrow {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+
+.timeline-card.open .arrow {
+  transform: rotate(180deg);
+}
+
+.timeline-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.timeline-card.open .timeline-body {
+  max-height: 600px;
+}
+
+.timeline-body-inner {
+  padding: 0 18px 18px;
+  font-size: 13px;
+}
+
+.timeline-body-inner ul {
+  padding-left: 16px;
+}
+
+.timeline-body-inner li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+}
+
+.timeline-phase {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 4px;
+}
+
+.timeline-month:nth-child(1) .timeline-phase { color: var(--red); }
+.timeline-month:nth-child(2) .timeline-phase { color: var(--amber); }
+.timeline-month:nth-child(3) .timeline-phase { color: var(--green); }
+
+/* ═══════════════════════════════════════════
+   NOT-FOCUS LIST
+   ═══════════════════════════════════════════ */
+.not-focus-item {
+  display: flex; gap: 16px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.not-focus-item:last-child { border-bottom: none; }
+
+.not-focus-icon {
+  width: 36px; height: 36px;
+  border-radius: 8px;
+  background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+  color: var(--text-secondary);
+}
+
+.not-focus-title {
+  font-size: 15px; font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+}
+
+.not-focus-rationale {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* ═══════════════════════════════════════════
+   WRS CHART
+   ═══════════════════════════════════════════ */
+.chart-container {
+  max-width: 500px;
+  margin: 20px 0;
+}
+
+/* ═══════════════════════════════════════════
+   SECTION INDICATOR
+   ═══════════════════════════════════════════ */
+.section-indicator {
+  position: fixed;
+  bottom: 24px; right: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  z-index: 100;
+}
+
+.section-indicator .current-num {
+  color: var(--lava);
+  font-size: 16px;
+}
+
+/* ═══════════════════════════════════════════
+   KEYBOARD HINT
+   ═══════════════════════════════════════════ */
+.keyboard-hint {
+  position: fixed;
+  bottom: 24px; right: 110px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  z-index: 100;
+  display: flex; align-items: center; gap: 6px;
+}
+
+.key {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px; font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════
+   PRINT STYLES
+   ═══════════════════════════════════════════ */
+@media print {
+  .sidebar, .section-indicator, .keyboard-hint { display: none !important; }
+  .main { margin-left: 0 !important; }
+  section { min-height: auto !important; padding: 24px 0 !important; page-break-inside: avoid; }
+  .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE (for smaller screens/projectors)
+   ═══════════════════════════════════════════ */
+@media (max-width: 1100px) {
+  :root { --sidebar-w: 220px; }
+  section { padding: 60px 40px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <h2>Magma CTO Assessment</h2>
+    <p>Ilya Yakushev, March 2026</p>
+  </div>
+  <div class="sidebar-nav">
+    <a href="#hero" class="active"><span class="nav-num">1</span> Overview</a>
+    <a href="#architecture"><span class="nav-num">2</span> Architecture</a>
+    <a href="#risks"><span class="nav-num">3</span> Critical Risks</a>
+    <a href="#scenarios"><span class="nav-num">4</span> Failure Scenarios</a>
+    <a href="#plan"><span class="nav-num">5</span> 90-Day Plan</a>
+    <a href="#not-focus"><span class="nav-num">6</span> Not Focusing On</a>
+  </div>
+  <div class="sidebar-footer">
+    <a href="../dashboard/dashboard.html" target="_blank">View Observability Dashboard &rarr;</a>
+  </div>
+</nav>
+
+<!-- ═══════════════ SECTION INDICATOR ═══════════════ -->
+<div class="section-indicator"><span class="current-num">1</span> / 6</div>
+<div class="keyboard-hint"><span class="key">&uarr;</span><span class="key">&darr;</span> navigate</div>
+
+<!-- ═══════════════ MAIN CONTENT ═══════════════ -->
+<div class="main">
+
+  <!-- ═══════════════ 1. HERO ═══════════════ -->
+  <section class="hero" id="hero" data-section="1">
+    <div class="reveal">
+      <div class="hero-eyebrow">Magma CTO Assessment - Ilya Yakushev, March 2026</div>
+      <h1>Lava Smart Router<br>Architecture &amp; Hardening</h1>
+      <p class="hero-subtitle">A production-readiness assessment of Lava's enterprise RPC routing layer, with a prioritized 90-day plan to reach custodian-grade reliability.</p>
+
+      <div class="callout" style="max-width:680px">
+        <strong>Thesis:</strong> The Smart Router is a well-engineered routing engine. It is not broken. But it has specific, fixable failure modes that will breach enterprise SLAs under load if not addressed before Magma signs its first custodian contract.
+      </div>
+
+      <a class="dashboard-link" href="../dashboard/dashboard.html" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="1" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="1" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/><rect x="9" y="9" width="6" height="6" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+        Observability Dashboard Prototype
+      </a>
+
+      <div class="hero-meta">
+        <span>5 risks identified</span>
+        <span>3 failure scenarios</span>
+        <span>90-day actionable plan</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 2. ARCHITECTURE ═══════════════ -->
+  <section id="architecture" data-section="2">
+    <div class="reveal">
+      <h4>System Architecture</h4>
+      <h2>How the Smart Router Works</h2>
+
+      <p>The Smart Router (<code>protocol/rpcsmartrouter/</code>) is an enterprise RPC aggregation layer that sits between clients (custodians, exchanges, wallets) and a pool of RPC node providers. It abstracts multi-provider routing behind a single endpoint, selecting the best provider per request using a weighted composite QoS score, and retrying failed requests transparently.</p>
+    </div>
+
+    <!-- Deployment Models -->
+    <div class="reveal" style="margin-top:40px">
+      <h3>Two Deployment Models</h3>
+      <table>
+        <thead>
+          <tr><th></th><th>RPCSmartRouter</th><th>RPCConsumer</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Provider source</strong></td><td>Static YAML config</td><td>Blockchain pairing</td></tr>
+          <tr><td><strong>Weight boost</strong></td><td>10&times; for static providers <span class="source-ref">consumer_types.go:47</span></td><td>None</td></tr>
+          <tr><td><strong>Chain dependency</strong></td><td>Off-chain only</td><td>Requires blockchain sync</td></tr>
+          <tr><td><strong>Retry dedup</strong></td><td>In-memory ristretto (6h TTL)</td><td>Same</td></tr>
+          <tr><td><strong>Health endpoint</strong></td><td>None</td><td>None</td></tr>
+          <tr><td><strong>Target use case</strong></td><td>Enterprise (Magma)</td><td>Decentralized dApps</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:13px;color:var(--text-secondary)">The 10&times; weight boost (<code>WeightMultiplierForStaticProviders = 10</code>, applied at <span class="source-ref">consumer_types.go:719</span>) ensures statically configured providers dominate routing.</p>
+    </div>
+
+    <!-- Request Lifecycle Flowchart -->
+    <div class="reveal" style="margin-top:40px">
+      <h3>Request Lifecycle</h3>
+      <div class="flowchart">
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="flow-label">Client HTTP / WS / gRPC Request</div>
+            <div class="flow-detail">Inbound from custodian, exchange, or wallet</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="flow-label">ChainListener &rarr; ParseMsg &rarr; ProtocolMessage</div>
+            <div class="flow-detail">JSON-RPC / gRPC / REST / Tendermint &mdash; <span class="source-ref">chainlib</span></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="flow-label">SmartRouterRelayStateMachine</div>
+            <div class="flow-detail">Core routing state machine &mdash; <span class="source-ref">smartrouter_relay_state_machine.go</span></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="flow-label">UsedProviders.TryLockSelection</div>
+            <div class="flow-detail">Polling mutex, 500 &times; 5ms max wait. <span class="source-ref">used_providers.go:230</span></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="flow-label">ProviderOptimizer.ChooseProvider</div>
+            <div class="flow-detail">WRS scoring &mdash; <span class="source-ref">weighted_selector.go:121-129</span></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="flow-label">ConsumerSessionManager.GetSessions</div>
+            <div class="flow-detail">RWMutex-guarded session acquisition &mdash; <span class="source-ref">consumer_session_manager.go:41</span></div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-line"><div class="flow-dot"></div><div class="flow-connector"></div></div>
+          <div class="flow-content">
+            <div class="flow-label">sendRelayToProvider &rarr; RelayProcessor.WaitForResults</div>
+            <div class="flow-detail">Concurrent goroutines &rarr; response to client</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--text-secondary)">The critical path traverses two locks: a polling mutex in <code>TryLockSelection</code> and a broad <code>RWMutex</code> in <code>ConsumerSessionManager</code> that guards the entire pairing map.</p>
+    </div>
+
+    <!-- Selection Modes -->
+    <div class="reveal" style="margin-top:40px">
+      <h3>Three Selection Modes</h3>
+      <div class="grid-3">
+        <div class="card mode-card">
+          <div class="mode-name">Stateless</div>
+          <div class="mode-desc">Single provider per attempt. Retries up to 10 times via ticker. Fixed 2ms backoff between initial attempts.</div>
+          <div class="mode-traffic">95%+ enterprise traffic</div>
+          <div style="margin-top:8px"><span class="source-ref">rpcsmartrouter_server.go:47,333</span></div>
+        </div>
+        <div class="card mode-card">
+          <div class="mode-name">Stateful</div>
+          <div class="mode-desc">Fan-out to all top providers simultaneously. First valid response wins. No retries.</div>
+          <div class="mode-traffic">Low-latency path</div>
+        </div>
+        <div class="card mode-card">
+          <div class="mode-name">CrossValidation</div>
+          <div class="mode-desc">Fan-out to N providers. Requires AgreementThreshold consensus. No retries.</div>
+          <div class="mode-traffic">Data integrity path</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WRS Scoring -->
+    <div class="reveal" style="margin-top:40px">
+      <h3>WRS Provider Scoring</h3>
+      <pre>composite = 0.3 &times; availability
+         + 0.3 &times; latency_score      (normalized via adaptive P10-P90 T-Digest)
+         + 0.2 &times; sync_score         (normalized via adaptive P10-P90 T-Digest)
+         + 0.2 &times; sqrt(stake_ratio)
+
+selection_weight = max(composite, minSelectionChance = 0.01)
+probability      = weight_i / &Sigma;(weights)</pre>
+      <p style="font-size:13px;color:var(--text-secondary)">
+        Weights from <code>DefaultWeightedSelectorConfig()</code> &mdash; <span class="source-ref">weighted_selector.go:121-129</span><br>
+        Min selection chance flag &mdash; <span class="source-ref">cobra_common.go:83</span>
+      </p>
+
+      <div class="chart-container">
+        <canvas id="wrsChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 3. CRITICAL RISKS ═══════════════ -->
+  <section id="risks" data-section="3">
+    <div class="reveal">
+      <h4>Risk Analysis</h4>
+      <h2>Five Critical Technical Risks</h2>
+      <p style="color:var(--text-secondary);margin-bottom:32px">Ranked by enterprise blast radius. The first three will lose contracts or cause incidents. The last two erode trust over time.</p>
+    </div>
+
+    <!-- Risk 1 -->
+    <div class="card risk-card reveal">
+      <div class="risk-header">
+        <span class="badge badge-critical">Critical</span>
+        <span class="risk-title">Risk 1: No Graceful Shutdown or Health Signaling</span>
+      </div>
+      <div class="risk-body">
+        <p>The signal handler catches only <code>SIGINT</code>, ignoring <code>SIGTERM</code> entirely.</p>
+        <pre>signalChan := make(chan os.Signal, 1)
+signal.Notify(signalChan, os.Interrupt)  // SIGINT only
+&lt;-signalChan
+return nil</pre>
+        <p><span class="source-ref">rpcsmartrouter.go:300-302</span></p>
+
+        <div class="risk-sub">
+          <strong>1a. SIGTERM is ignored.</strong> Kubernetes sends SIGTERM for pod eviction and rolling deploys. The process doesn't catch it. K8s waits 30s, then SIGKILL. Every rolling deploy is a hard kill, wiping dedup cache, dropping in-flight requests, resetting QoS state.
+        </div>
+        <div class="risk-sub">
+          <strong>1b. No connection drain.</strong> No mechanism to stop accepting new connections while finishing in-flight relays. A custodian's <code>eth_sendRawTransaction</code> killed mid-relay can cause double-submission on retry.
+        </div>
+        <div class="risk-sub">
+          <strong>1c. No health/liveness endpoint.</strong> No <code>/health</code>, no gRPC health service, no readiness probe. A router stuck in a lock storm still accepts TCP connections but never responds. Load balancer keeps sending traffic to a zombie.
+        </div>
+      </div>
+      <div class="risk-footer">
+        <div class="risk-footer-item"><label>Impact</label>Every deploy is a potential double-execution event</div>
+        <div class="risk-footer-item"><label>Effort</label>Low-medium, about a week</div>
+      </div>
+    </div>
+
+    <!-- Risk 2 -->
+    <div class="card risk-card reveal">
+      <div class="risk-header">
+        <span class="badge badge-critical">Critical</span>
+        <span class="risk-title">Risk 2: Retry Dedup Cache Lost on Every Restart</span>
+      </div>
+      <div class="risk-body">
+        <p>In-memory ristretto cache with 6-hour TTL. Combined with Risk 1 (no graceful shutdown), every deploy wipes this cache.</p>
+        <pre>const (
+    CacheMaxCost     = 10 * 1024
+    CacheNumCounters = 20000
+    RetryEntryTTL    = 6 * time.Hour
+)</pre>
+        <p><span class="source-ref">relay_retries_manager.go:11-14</span></p>
+        <p>The <code>RelayRetriesManagerInf</code> interface already has the right abstraction: three methods, no complex semantics. A Redis backend is straightforward.</p>
+        <p><span class="source-ref">relay_retries_manager.go:17-21</span></p>
+      </div>
+      <div class="risk-footer">
+        <div class="risk-footer-item"><label>Impact</label>Highest-severity hidden risk: double-execution for custodians</div>
+        <div class="risk-footer-item"><label>Effort</label>Low, about 2 days</div>
+      </div>
+    </div>
+
+    <!-- Risk 3 -->
+    <div class="card risk-card high reveal">
+      <div class="risk-header">
+        <span class="badge badge-high">High</span>
+        <span class="risk-title">Risk 3: Lock Contention Cascade Under Traffic Spikes</span>
+      </div>
+      <div class="risk-body">
+        <p>Every relay traverses two nested locks:</p>
+        <p><strong>1.</strong> <code>UsedProviders.lock</code>, polled via <code>TryLockSelection</code> up to 500 &times; 5ms = 2.5s max wait <span class="source-ref">used_providers.go:12, 230-250</span></p>
+        <p><strong>2.</strong> <code>ConsumerSessionManager.lock</code> (RWMutex), guards 8 fields including pairing map <span class="source-ref">consumer_session_manager.go:41</span></p>
+
+        <pre>for counter := 0; counter < MaximumNumberOfSelectionLockAttempts; counter++ {
+    // ...
+    time.Sleep(5 * time.Millisecond)
+}</pre>
+
+        <p>Under a traffic spike (1,000+ concurrent goroutines), a single write event starves all readers. No backpressure mechanism; the router accepts unlimited inbound connections. Self-reinforcing: errors trigger retries that create more goroutines.</p>
+      </div>
+      <div class="risk-footer">
+        <div class="risk-footer-item"><label>Impact</label>P99 &rarr; &infin; during spikes. SLA breach.</div>
+        <div class="risk-footer-item"><label>Fix</label>Load test first, validate before committing to lock decomposition</div>
+      </div>
+    </div>
+
+    <!-- Risk 4 -->
+    <div class="card risk-card high reveal">
+      <div class="risk-header">
+        <span class="badge badge-high">High</span>
+        <span class="risk-title">Risk 4: Circuit Breaker Is Primitive and Unobservable</span>
+      </div>
+      <div class="risk-body">
+        <pre>if srsm.consecutivePairingErrors >= 2 {
+    utils.LavaFormatWarning("Circuit breaker triggered: ...")
+    go validateReturnCondition(err)
+    continue
+}</pre>
+        <p><span class="source-ref">smartrouter_relay_state_machine.go:378</span></p>
+
+        <p><strong>Problems:</strong></p>
+        <div class="risk-sub"><strong>Inline literal threshold</strong> (<code>2</code>), not configurable. Operators cannot tune it.</div>
+        <div class="risk-sub"><strong>Counter resets on error-type change</strong> <span class="source-ref">line 391</span>. A flapping provider prevents the circuit from ever opening.</div>
+        <div class="risk-sub"><strong>No half-open state.</strong> Circuit snaps closed instantly. No probe requests, no backoff.</div>
+        <div class="risk-sub"><strong>No Prometheus metric.</strong> State transitions emit only <code>LavaFormatWarning</code>, invisible to production alerting.</div>
+      </div>
+      <div class="risk-footer">
+        <div class="risk-footer-item"><label>Impact</label>Thousands of futile retries during provider outages, operator unaware</div>
+        <div class="risk-footer-item"><label>Effort</label>Medium, use <code>sony/gobreaker</code></div>
+      </div>
+    </div>
+
+    <!-- Risk 5 -->
+    <div class="card risk-card high reveal">
+      <div class="risk-header">
+        <span class="badge badge-high">High</span>
+        <span class="risk-title">Risk 5: All Behavioral Limits Are Compile-Time Constants</span>
+      </div>
+      <div class="risk-body">
+        <p>Two files define the operational envelope:</p>
+        <pre>// common.go:37-45
+MaxConsecutiveConnectionAttempts                 = 5
+TimeoutForEstablishingAConnection                = 1500ms
+MaximumNumberOfFailuresAllowedPerConsumerSession = 15
+BACKOFF_TIME_ON_FAILURE                          = 3s</pre>
+        <p><span class="source-ref">common.go:37-45</span></p>
+        <pre>// rpcsmartrouter_server.go:47-59
+MaximumNumberOfTickerRelayRetries = 10
+MaxRelayRetries                   = 6
+SendRelayAttempts                 = 3
+PairingInitializationTimeout      = 30s
+RelayRetryBackoffDuration         = 2ms</pre>
+        <p><span class="source-ref">rpcsmartrouter_server.go:47-59</span></p>
+        <p>A custodian needs 5+ retries with long timeouts. An exchange needs 1 retry with 100ms hard deadline. Today: separate compiled binaries required.</p>
+      </div>
+      <div class="risk-footer">
+        <div class="risk-footer-item"><label>Impact</label>Sales-blocking: enterprise teams ask to tune retry behavior before signing</div>
+        <div class="risk-footer-item"><label>Effort</label>Low. <code>const</code> &rarr; <code>var</code>, wire to viper flags</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 4. FAILURE SCENARIOS ═══════════════ -->
+  <section id="scenarios" data-section="4">
+    <div class="reveal">
+      <h4>Failure Analysis</h4>
+      <h2>Production Stress Scenarios</h2>
+      <p style="color:var(--text-secondary);margin-bottom:32px">Not restatements of risks. Specific scenarios where multiple risks compound.</p>
+    </div>
+
+    <!-- Scenario A -->
+    <div class="card scenario-card reveal">
+      <div class="scenario-title">Scenario A: The Rolling Deploy</div>
+      <div class="scenario-subtitle">Risks 1a + 1c + 2 compound on every deploy</div>
+
+      <div class="cascade">
+        <div class="cascade-step warning">
+          <div class="cascade-marker">1</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>Ops runs <code>kubectl rollout restart</code></strong> during peak hours. Kubernetes sends SIGTERM.</div>
+        </div>
+        <div class="cascade-step">
+          <div class="cascade-marker">2</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>Router ignores SIGTERM</strong> (Risk 1a). After 30s, SIGKILL fires. In-memory QoS data and dedup cache are destroyed.</div>
+        </div>
+        <div class="cascade-step">
+          <div class="cascade-marker">3</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>Replacement pod starts blank</strong>, so all providers look identical. First ~5,000 requests route near-randomly while T-Digest rebuilds.</div>
+        </div>
+        <div class="cascade-step final">
+          <div class="cascade-marker">!</div>
+          <div class="cascade-text"><strong>Double-execution risk</strong> for every subscription in flight at the moment of SIGKILL. Not an edge case. The normal operational path.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenario B -->
+    <div class="card scenario-card reveal">
+      <div class="scenario-title">Scenario B: The Provider Cascade</div>
+      <div class="scenario-subtitle">One provider failure spirals into multi-provider degradation</div>
+
+      <div class="cascade">
+        <div class="cascade-step warning">
+          <div class="cascade-marker">1</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>1 of 4 providers loses connectivity.</strong> Detection takes 5 &times; 1500ms = 7.5 seconds. <span class="source-ref">common.go:37-38</span></div>
+        </div>
+        <div class="cascade-step">
+          <div class="cascade-marker">2</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>25% of goroutines pile up</strong> waiting for the dead provider. <code>BACKOFF_TIME_ON_FAILURE = 3s</code> adds delay. Total degradation: 10-12 seconds. <span class="source-ref">common.go:45</span></div>
+        </div>
+        <div class="cascade-step">
+          <div class="cascade-marker">3</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>Remaining 3 providers absorb 33% more traffic.</strong> If one was at 80% capacity, it starts timing out.</div>
+        </div>
+        <div class="cascade-step">
+          <div class="cascade-marker">4</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>Circuit breaker's flapping-reset bug</strong> (Risk 4) prevents it from opening. Two providers now degraded.</div>
+        </div>
+        <div class="cascade-step final">
+          <div class="cascade-marker">!</div>
+          <div class="cascade-text"><strong>System spirals.</strong> At 1,000 TPS: 10,000-12,000 failed or delayed requests during the detection window.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scenario C -->
+    <div class="card scenario-card reveal">
+      <div class="scenario-title">Scenario C: The Lock Storm</div>
+      <div class="scenario-subtitle">Traffic spike + pairing update = self-reinforcing cascade</div>
+
+      <div class="cascade">
+        <div class="cascade-step warning">
+          <div class="cascade-marker">1</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>Sudden traffic spike</strong> (exchange listing, token launch) coincides with a pairing update.</div>
+        </div>
+        <div class="cascade-step">
+          <div class="cascade-marker">2</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>Write lock in <code>UpdateAllProviders()</code> starves all readers.</strong> Goroutines accumulate in <code>TryLockSelection</code>'s 5ms polling loop. <span class="source-ref">used_providers.go:230</span></div>
+        </div>
+        <div class="cascade-step">
+          <div class="cascade-marker">3</div>
+          <div class="cascade-line"></div>
+          <div class="cascade-text"><strong>No backpressure</strong>, so new connections keep arriving. Provider timeouts generate errors &rarr; trigger retries &rarr; spawn more goroutines.</div>
+        </div>
+        <div class="cascade-step final">
+          <div class="cascade-marker">!</div>
+          <div class="cascade-text"><strong>Go scheduler degrades</strong> under goroutine pressure. P99 &rarr; &infin;. Hard to reproduce in staging. Requires load testing at 2&times; production TPS with simultaneous provider kill.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 5. 90-DAY PLAN ═══════════════ -->
+  <section id="plan" data-section="5">
+    <div class="reveal">
+      <h4>Hardening Plan</h4>
+      <h2>Prioritized 90-Day Roadmap</h2>
+      <p style="color:var(--text-secondary);margin-bottom:8px">Sequenced by blast radius, not elegance. Fix what pages you at 3am first.</p>
+    </div>
+
+    <div class="timeline reveal">
+      <!-- Month 1 -->
+      <div class="timeline-month">
+        <div class="timeline-dot"></div>
+        <div class="timeline-fill"></div>
+        <div class="timeline-phase">Month 1</div>
+        <div class="timeline-card open" onclick="this.classList.toggle('open')">
+          <div class="timeline-header">
+            <h3>Stop the Bleeding</h3>
+            <span class="arrow">&#9660;</span>
+          </div>
+          <div class="timeline-body">
+            <div class="timeline-body-inner">
+              <p style="font-weight:600;margin-bottom:8px">Week 1-2: Graceful shutdown + health</p>
+              <ul>
+                <li>Add <code>syscall.SIGTERM</code> to signal handler <span class="source-ref">rpcsmartrouter.go:301</span></li>
+                <li>Connection drain: stop accepting, finish in-flight with configurable timeout (15s default)</li>
+                <li>Expose <code>/health</code> endpoint: 200 when ready, 503 once drain begins</li>
+                <li>K8s liveness/readiness probe config</li>
+              </ul>
+              <p style="font-weight:600;margin-bottom:8px;margin-top:16px">Week 2-3: Prometheus metrics</p>
+              <ul>
+                <li>Circuit breaker state transitions <span class="source-ref">smartrouter_relay_state_machine.go:378</span></li>
+                <li><code>TryLockSelection</code> wait-time histogram <span class="source-ref">used_providers.go:230</span></li>
+                <li>CU mismatch events <span class="source-ref">single_provider_session.go:98</span></li>
+                <li>Provider block/unblock events with reason</li>
+              </ul>
+              <p style="font-weight:600;margin-bottom:8px;margin-top:16px">Week 3-4: Load test &amp; profile</p>
+              <ul>
+                <li>15-min test at 2&times; production TPS</li>
+                <li>Kill one provider at minute 5, restore at minute 10</li>
+                <li>Profile <code>pprof</code> goroutine dumps at peak</li>
+                <li>Result determines if lock decomposition enters Month 2</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Month 2 -->
+      <div class="timeline-month">
+        <div class="timeline-dot"></div>
+        <div class="timeline-fill"></div>
+        <div class="timeline-phase">Month 2</div>
+        <div class="timeline-card" onclick="this.classList.toggle('open')">
+          <div class="timeline-header">
+            <h3>Fix Contract Blockers</h3>
+            <span class="arrow">&#9660;</span>
+          </div>
+          <div class="timeline-body">
+            <div class="timeline-body-inner">
+              <p style="font-weight:600;margin-bottom:8px">Weeks 5-6: Persistent retry dedup</p>
+              <ul>
+                <li>Redis backend for <code>RelayRetriesManagerInf</code> <span class="source-ref">relay_retries_manager.go:17-21</span></li>
+                <li>Fall back to ristretto if Redis unavailable</li>
+                <li>Eliminates double-execution risk on restart</li>
+              </ul>
+              <p style="font-weight:600;margin-bottom:8px;margin-top:16px">Weeks 6-8: Runtime-configurable constants</p>
+              <table style="font-size:12px;margin-top:8px">
+                <thead><tr><th>Constant</th><th>File</th><th>Default</th></tr></thead>
+                <tbody>
+                  <tr><td><code>MaxConsecutiveConnectionAttempts</code></td><td><span class="source-ref">common.go:37</span></td><td>5</td></tr>
+                  <tr><td><code>TimeoutForEstablishingAConnection</code></td><td><span class="source-ref">common.go:38</span></td><td>1500ms</td></tr>
+                  <tr><td><code>BACKOFF_TIME_ON_FAILURE</code></td><td><span class="source-ref">common.go:45</span></td><td>3s</td></tr>
+                  <tr><td><code>MaximumNumberOfTickerRelayRetries</code></td><td><span class="source-ref">rpcsmartrouter_server.go:47</span></td><td>10</td></tr>
+                  <tr><td><code>MaxRelayRetries</code></td><td><span class="source-ref">rpcsmartrouter_server.go:48</span></td><td>6</td></tr>
+                  <tr><td><code>SendRelayAttempts</code></td><td><span class="source-ref">rpcsmartrouter_server.go:49</span></td><td>3</td></tr>
+                  <tr><td><code>Circuit breaker threshold</code></td><td><span class="source-ref">smartrouter_relay_state_machine.go:378</span></td><td>2</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Month 3 -->
+      <div class="timeline-month">
+        <div class="timeline-dot"></div>
+        <div class="timeline-fill"></div>
+        <div class="timeline-phase">Month 3</div>
+        <div class="timeline-card" onclick="this.classList.toggle('open')">
+          <div class="timeline-header">
+            <h3>Enterprise Differentiation</h3>
+            <span class="arrow">&#9660;</span>
+          </div>
+          <div class="timeline-body">
+            <div class="timeline-body-inner">
+              <p style="font-weight:600;margin-bottom:8px">Weeks 9-10: Replace circuit breaker</p>
+              <ul>
+                <li>Configurable threshold, half-open state with probe requests</li>
+                <li>Prometheus metrics on state transitions</li>
+                <li>Use <code>sony/gobreaker</code> rather than custom implementation</li>
+              </ul>
+              <p style="font-weight:600;margin-bottom:8px;margin-top:16px">Weeks 11-12: Per-tenant routing profiles</p>
+              <ul>
+                <li>Named config profiles keyed by API key or HTTP header</li>
+                <li>Custodian: <code>MaxRelayRetries=5, Timeout=3000ms</code></li>
+                <li>Exchange: <code>MaxRelayRetries=1, Timeout=100ms</code></li>
+                <li>Enables tiered enterprise SLAs from a single deployment</li>
+              </ul>
+              <p style="font-weight:600;margin-bottom:8px;margin-top:16px">Week 12: Disaster recovery runbook</p>
+              <ul>
+                <li>Restart behavior (QoS warm-up window)</li>
+                <li>Graceful drain procedure</li>
+                <li>Provider add/remove without restart</li>
+                <li>Circuit breaker manual override</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════ 6. NOT FOCUSING ON ═══════════════ -->
+  <section id="not-focus" data-section="6">
+    <div class="reveal">
+      <h4>Strategic Discipline</h4>
+      <h2>What We Would Not Focus On</h2>
+      <p style="color:var(--text-secondary);margin-bottom:32px">All reasonable engineering projects. None reduces the probability of a 3am page or an SLA breach in the next 90 days.</p>
+    </div>
+
+    <div class="reveal">
+      <div class="not-focus-item">
+        <div class="not-focus-icon">&lt;/&gt;</div>
+        <div>
+          <div class="not-focus-title">ChainLib / gRPC Proxy Refactoring</div>
+          <div class="not-focus-rationale">Deliberately excluded from linting in <code>.golangci.yml</code>. Known-messy, but not on the enterprise reliability hot path. High regression risk, low blast-radius reduction. Q2.</div>
+        </div>
+      </div>
+
+      <div class="not-focus-item">
+        <div class="not-focus-icon">&check;</div>
+        <div>
+          <div class="not-focus-title">CrossValidation Mode Hardening</div>
+          <div class="not-focus-rationale">Complex failure modes (split consensus, quorum never reached). But Stateless mode carries 95%+ of enterprise traffic. Hardening CrossValidation before Stateless is reliable means optimizing the wrong path.</div>
+        </div>
+      </div>
+
+      <div class="not-focus-item">
+        <div class="not-focus-icon">&Sigma;</div>
+        <div>
+          <div class="not-focus-title">WRS Algorithm Improvements</div>
+          <div class="not-focus-rationale">The adaptive P10-P90 normalization via T-Digest is already solid and recently shipped <span class="source-ref">weighted_selector.go</span>. The problem is missing observability and wrong defaults, not algorithm quality. Tuning an algorithm you can't observe is guesswork.</div>
+        </div>
+      </div>
+
+      <div class="not-focus-item">
+        <div class="not-focus-icon">&#8644;</div>
+        <div>
+          <div class="not-focus-title">Horizontal Smart Router Clustering</div>
+          <div class="not-focus-rationale">No shared session state between instances. A load balancer in front of single-instance routers provides horizontal scale today. Design clustering after single-instance reliability is proven. Adding distributed coordination before you need it creates more problems than it solves.</div>
+        </div>
+      </div>
+
+      <div class="not-focus-item">
+        <div class="not-focus-icon">&#9881;</div>
+        <div>
+          <div class="not-focus-title">Relay State Machine Rewrite</div>
+          <div class="not-focus-rationale"><code>SmartRouterRelayStateMachine</code> is complex but well-covered by tests. The right move is targeted: add metrics, fix the circuit breaker, make constants configurable. Restructuring the state machine while also changing its behavior compounds regression risk.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- .main -->
+
+<script>
+// ═══════════════════════════════════════════
+// SCROLL-BASED NAVIGATION & ANIMATIONS
+// ═══════════════════════════════════════════
+
+const sections = document.querySelectorAll('section[data-section]');
+const navLinks = document.querySelectorAll('.sidebar-nav a');
+const indicator = document.querySelector('.section-indicator .current-num');
+const reveals = document.querySelectorAll('.reveal');
+
+function updateActiveSection() {
+  let current = 1;
+  const scrollY = window.scrollY + window.innerHeight / 3;
+
+  sections.forEach(section => {
+    if (section.offsetTop <= scrollY) {
+      current = parseInt(section.dataset.section);
+    }
+  });
+
+  indicator.textContent = current;
+
+  navLinks.forEach(link => {
+    link.classList.remove('active');
+    if (link.getAttribute('href') === '#' + sections[current - 1].id) {
+      link.classList.add('active');
+    }
+  });
+}
+
+function revealOnScroll() {
+  const windowBottom = window.scrollY + window.innerHeight * 0.88;
+  reveals.forEach(el => {
+    if (el.getBoundingClientRect().top + window.scrollY < windowBottom) {
+      el.classList.add('visible');
+    }
+  });
+}
+
+window.addEventListener('scroll', () => {
+  updateActiveSection();
+  revealOnScroll();
+});
+
+// Initial reveal for hero
+window.addEventListener('DOMContentLoaded', () => {
+  revealOnScroll();
+  updateActiveSection();
+});
+
+// ═══════════════════════════════════════════
+// KEYBOARD NAVIGATION
+// ═══════════════════════════════════════════
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+    e.preventDefault();
+    const current = parseInt(indicator.textContent);
+    if (current < sections.length) {
+      sections[current].scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+  if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+    e.preventDefault();
+    const current = parseInt(indicator.textContent);
+    if (current > 1) {
+      sections[current - 2].scrollIntoView({ behavior: 'smooth' });
+    }
+  }
+});
+
+// ═══════════════════════════════════════════
+// WRS CHART
+// ═══════════════════════════════════════════
+
+const ctx = document.getElementById('wrsChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: ['Availability', 'Latency', 'Sync Score', 'Stake Ratio'],
+    datasets: [{
+      label: 'Weight in Composite Score',
+      data: [0.3, 0.3, 0.2, 0.2],
+      backgroundColor: ['#e63e1a', '#ff6b47', '#d97706', '#16a34a'],
+      borderRadius: 6,
+      barThickness: 32
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => (ctx.raw * 100) + '% weight'
+        }
+      }
+    },
+    scales: {
+      x: {
+        max: 0.4,
+        ticks: {
+          callback: (v) => (v * 100) + '%',
+          font: { family: 'Inter', size: 12 }
+        },
+        grid: { color: '#e2e8f0' }
+      },
+      y: {
+        ticks: {
+          font: { family: 'Inter', size: 13, weight: 600 }
+        },
+        grid: { display: false }
+      }
+    }
+  }
+});
+</script>
+
+</body>
+</html>
