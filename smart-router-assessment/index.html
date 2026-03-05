@@ -593,31 +593,31 @@ tr:nth-child(even) td { background: var(--bg); }
    ═══════════════════════════════════════════ */
 .timeline {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0;
+  grid-template-columns: 1fr;
+  gap: 24px;
   margin: 32px 0;
   position: relative;
+  padding-left: 40px;
 }
 
 .timeline::before {
   content: '';
   position: absolute;
-  top: 24px; left: 0; right: 0;
-  height: 4px;
+  top: 0; bottom: 0; left: 18px;
+  width: 4px;
   background: var(--border);
   border-radius: 2px;
 }
 
 .timeline-month {
   position: relative;
-  padding-top: 48px;
 }
 
 .timeline-dot {
   width: 16px; height: 16px;
   border-radius: 50%;
   position: absolute;
-  top: 17px; left: 24px;
+  top: 14px; left: -34px;
   z-index: 1;
 }
 
@@ -631,9 +631,9 @@ tr:nth-child(even) td { background: var(--bg); }
 
 .timeline-fill {
   position: absolute;
-  top: 24px; left: 0;
-  height: 4px;
-  width: 32px;
+  top: 0; left: -26px;
+  width: 4px;
+  height: 100%;
   border-radius: 2px;
 }
 
@@ -641,7 +641,6 @@ tr:nth-child(even) td { background: var(--bg); }
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 10px;
-  margin-right: 12px;
   overflow: hidden;
 }
 
@@ -675,7 +674,7 @@ tr:nth-child(even) td { background: var(--bg); }
 }
 
 .timeline-card.open .timeline-body {
-  max-height: 600px;
+  max-height: 800px;
 }
 
 .timeline-body-inner {
