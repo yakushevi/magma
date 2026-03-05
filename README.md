@@ -1,15 +1,16 @@
 # Magma CTO Assessment - Lava Smart Router
 
-Two deliverables:
-
-1. **[architecture-analysis-hardening-plan.md](smart-router-assessment/architecture-analysis-hardening-plan.md)** - Technical architecture and 90-day hardening plan
-2. **[dashboard/](dashboard/)** - Live operations dashboard prototype (no build step)
-
 ---
 
-## Part 1: Architecture Document
+## Part 1: Architecture Analysis & 90-Day Production Hardening Plan
 
-### Render to PDF
+### 📊 [Interactive overview](https://yakushevi.github.io/magma)
+### 📝 [Markdown document](smart-router-assessment/architecture-analysis-hardening-plan.md)
+### 📄 [PDF document](smart-router-assessment/architecture-analysis-hardening-plan.pdf)
+
+<br>
+
+### Render Markdown to PDF
 
 ```bash
 cd smart-router-assessment
@@ -18,15 +19,11 @@ pandoc architecture-analysis-hardening-plan.md -o architecture-analysis-hardenin
 
 ---
 
-## Part 2: Dashboard Prototype
+## Part 2: Observability Dashboard Prototype
 
-### Open Locally
+### 🚀 [Live demo](https://yakushevi.github.io/magma/dashboard/dashboard.html)
 
-```bash
-# Open directly in browser - no server needed
-open dashboard/dashboard.html         # macOS
-xdg-open dashboard/dashboard.html     # Linux
-```
+<br>
 
 ### File Structure
 
